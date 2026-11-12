@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { ShoppingCartPlusIcon } from "lucide-react";
 import { login } from "@/Redux Toolkit/features/Auth/authThunk";
 import { logout as clearAuth } from "@/Redux Toolkit/features/Auth/authSlice";
@@ -85,6 +85,12 @@ export default function Login() {
                         </button>
                     )}
                 </form>
+                <p className="mt-6 text-center text-sm text-muted-foreground">
+                    New to POS Pro?{" "}
+                    <Link className="font-medium text-primary underline-offset-4 hover:underline" to="/signup">
+                        Create an account
+                    </Link>
+                </p>
             </section>
         </main>
     );
