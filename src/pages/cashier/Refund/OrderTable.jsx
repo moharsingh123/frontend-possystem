@@ -1,13 +1,5 @@
-// import React from 'react';
-
-// const OrderTable=()=>{
-//     return(
-//         <div>OrderTable</div>
-//     )
-// }
-// export default OrderTable;
-
-import React from 'react';
+import { useEffect, useState } from 'react';
+import { Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Table,
@@ -17,36 +9,69 @@ import {
     TableBody,
     TableCell,
 } from '@/components/ui/table'
-const Orders=[
-    {
-        id:1,
-        createdAt:'2023-06-01 10:30 AM',
-        customer:{
-            fullName:"Munna Bhaiya",
-            phone:"8659874563"
-        },
-        
-        totalAmount:450,
-        paymenttype:'CASH',
-        status:'COMPLETED',
-        items:[
-            {
-                id:2,
-                product:{
-                    image:"https://images.unsplash.com/photo-1547592180-85f173990554?w=88&h=88&fit=crop",
-                    name:"Product 1",
-                    sku:"P001",
-                    sellingPrice:225,
-                },
-                quantity:2,
+import { getCashierOrders } from '@/utils/cashierOrders';
 
-            }
-        ]
-    }
-]
 const OrderTable = ({ handleSelectOrder }) => {
+    const [orders, setOrders] = useState([]);
+    const [query, setQuery] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadOrders() {
+            try {
+                const cashierOrders = await getCashierOrders();
+                if (!cancelled) setOrders(cashierOrders);
+            } catch (loadError) {
+                if (!cancelled) {
+                    setError(loadError.response?.data?.message || loadError.message || 'Unable to load orders.');
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        }
+
+        loadOrders();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const normalizedQuery = query.trim().toLowerCase();
+    const filteredOrders = orders.filter((order) => (
+        String(order.id ?? '').toLowerCase().includes(normalizedQuery)
+        || (order.customer?.fullName ?? '').toLowerCase().includes(normalizedQuery)
+    ));
+
     return (
-        <div>
+        <div className="space-y-4 p-4">
+            <div className="flex h-10 max-w-md items-center gap-2 rounded-md border bg-background px-3">
+                <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <input
+                    type="search"
+                    aria-label="Search orders for return or refund"
+                    placeholder="Search by order ID or customer name"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+                />
+                {query && (
+                    <button type="button" onClick={() => setQuery('')} aria-label="Clear search">
+                        <X className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                )}
+            </div>
+            {loading ? (
+                <p className="p-4 text-sm text-muted-foreground">Loading orders...</p>
+            ) : error ? (
+                <p role="alert" className="p-4 text-sm text-destructive">{error}</p>
+            ) : filteredOrders.length === 0 ? (
+                <p className="p-4 text-sm text-muted-foreground">
+                    {orders.length ? 'No orders match your search.' : 'No orders available for return or refund.'}
+                </p>
+            ) : (
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -60,32 +85,29 @@ const OrderTable = ({ handleSelectOrder }) => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {Orders.map((order) => (
+                            {filteredOrders.map((order) => (
                                 <TableRow key={order.id}>
                                     <TableCell>{order.id}</TableCell>
-                                    <TableCell>{order.createdAt}</TableCell>
-                                    <TableCell>{order.customer.fullName}</TableCell>
-                                    <TableCell className=''>₹{order.totalAmount}</TableCell>
-                                    <TableCell>{order.paymenttype}</TableCell>
-                                    <TableCell>{order.status}</TableCell>
+                                    <TableCell>{order.createdAt ? new Date(order.createdAt).toLocaleString() : '—'}</TableCell>
+                                    <TableCell>{order.customer?.fullName || 'Walk-in customer'}</TableCell>
+                                    <TableCell className=''>₹{Number(order.totalAmount || 0).toFixed(2)}</TableCell>
+                                    <TableCell>{order.paymentType || '—'}</TableCell>
+                                    <TableCell>{order.status || 'Completed'}</TableCell>
 
                                     <TableCell className="text-right p-card">
-                                       
-                                            <Button                 
-                                                size="sm"
-                                                onClick={() => handleSelectOrder(order)}
-                                                title="View Order Details"
-                                            >
-                                                Select for return 
-                                            </Button>
-
-             
-                                       
+                                        <Button
+                                            size="sm"
+                                            onClick={() => handleSelectOrder(order)}
+                                            title="Select order for return"
+                                        >
+                                            Select for return
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
+            )}
         </div>  
     )
 }
