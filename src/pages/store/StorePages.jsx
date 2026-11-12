@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Boxes, GitBranch, Plus, Store as StoreIcon } from "lucide-react";
+import { Link } from "react-router";
 import api from "@/utils/api";
 import { getAuthHeader } from "@/utils/getAuthHeader";
 import { getSessionUser } from "@/utils/session";
@@ -18,7 +19,9 @@ function useStore() {
                 if (!cancelled) setStore(response.data);
             })
             .catch((requestError) => {
-                if (!cancelled) setError(requestError.response?.data?.message || requestError.message || "Unable to load store.");
+                if (!cancelled && requestError.response?.status !== 404) {
+                    setError(requestError.response?.data?.message || requestError.message || "Unable to load store.");
+                }
             })
             .finally(() => {
                 if (!cancelled) setLoading(false);
@@ -39,6 +42,18 @@ function StoreNotice({ error, notice }) {
             {error && <p role="alert" className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
             {notice && <p role="status" className="mb-4 rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-800">{notice}</p>}
         </>
+    );
+}
+
+function StoreRequired() {
+    return (
+        <div className="rounded-xl border bg-card p-6">
+            <p className="font-medium">This account is not connected to a store.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Employee accounts must be created by a store administrator so they are linked to the correct store. Sign in with that administrator account or ask them to create your employee account.</p>
+            <Link to="/store" className="mt-4 inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+                Go to store overview
+            </Link>
+        </div>
     );
 }
 
@@ -234,16 +249,22 @@ export function StoreProducts() {
     const [form, setForm] = useState({ name: "", sku: "", brand: "", mrp: "", sellingPrice: "", categoryId: "" });
 
     async function loadProducts(storeId) {
+        setError("");
+        let productError = "";
+        let categoryError = "";
         try {
-            const [productResponse, categoryResponse] = await Promise.all([
-                api.get(`/api/products/store/${storeId}`, { headers: getAuthHeader() }),
-                api.get(`/api/categories/store/${storeId}`, { headers: getAuthHeader() }),
-            ]);
+            const productResponse = await api.get(`/api/products/store/${storeId}`, { headers: getAuthHeader() });
             setProducts(Array.isArray(productResponse.data) ? productResponse.data : []);
+        } catch (requestError) {
+            productError = requestError.response?.data?.message || requestError.message || "Unable to load products.";
+        }
+        try {
+            const categoryResponse = await api.get(`/api/categories/store/${storeId}`, { headers: getAuthHeader() });
             setCategories(Array.isArray(categoryResponse.data) ? categoryResponse.data : []);
         } catch (requestError) {
-            setError(requestError.response?.data?.message || requestError.message || "Unable to load products.");
+            categoryError = requestError.response?.data?.message || requestError.message || "Unable to load categories.";
         }
+        setError([productError, categoryError && `Unable to load categories: ${categoryError}`].filter(Boolean).join(" "));
     }
     useEffect(() => {
         if (store?.id) loadProducts(store.id);
@@ -298,30 +319,53 @@ export function StoreProducts() {
                         <tbody className="divide-y">{products.map((product) => <tr key={product.id}><td className="px-4 py-3 font-medium">{product.name}</td><td className="px-4 py-3 text-muted-foreground">{product.sku}</td><td className="px-4 py-3">{product.category?.name || "—"}</td><td className="px-4 py-3 text-right">{Number(product.sellingPrice || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td></tr>)}</tbody>
                     </table>
                 </section>
-            ) : <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">No products in this store yet.</p>}
+            ) : store ? <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">No products in this store yet.</p> : !storeLoading && <StoreRequired />}
         </main>
     );
 }
 
-export function StoreTeam() {
+export function StoreEmployees() {
     const { store, loading: storeLoading, error: storeError } = useStore();
     const [employees, setEmployees] = useState([]);
+    const [branches, setBranches] = useState([]);
+    const [employeesLoading, setEmployeesLoading] = useState(false);
+    const [branchesLoading, setBranchesLoading] = useState(false);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
     const [saving, setSaving] = useState(false);
-    const [form, setForm] = useState({ fullName: "", email: "", phone: "", password: "", role: "ROLE_STORE_MANAGER" });
+    const [linking, setLinking] = useState(false);
+    const [form, setForm] = useState({ fullName: "", email: "", phone: "", password: "", role: "ROLE_STORE_MANAGER", branchId: "" });
+    const [linkForm, setLinkForm] = useState({ email: "", role: "ROLE_STORE_MANAGER", branchId: "" });
     const isStoreAdmin = getSessionUser()?.role === "ROLE_STORE_ADMIN";
 
     async function loadEmployees(storeId) {
+        setEmployeesLoading(true);
+        setError("");
         try {
             const response = await api.get(`/api/employees/store/${storeId}`, { headers: getAuthHeader() });
             setEmployees(Array.isArray(response.data) ? response.data : []);
         } catch (requestError) {
-            setError(requestError.response?.data?.message || requestError.message || "Unable to load team.");
+            setError(requestError.response?.data?.message || requestError.message || "Unable to load employees.");
+        } finally {
+            setEmployeesLoading(false);
+        }
+    }
+    async function loadBranches(storeId) {
+        setBranchesLoading(true);
+        try {
+            const response = await api.get(`/api/branches/store/${storeId}`, { headers: getAuthHeader() });
+            setBranches(Array.isArray(response.data) ? response.data : []);
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || requestError.message || "Unable to load store branches.");
+        } finally {
+            setBranchesLoading(false);
         }
     }
     useEffect(() => {
-        if (store?.id) loadEmployees(store.id);
+        if (store?.id) {
+            loadEmployees(store.id);
+            loadBranches(store.id);
+        }
     }, [store?.id]);
 
     async function createEmployee(event) {
@@ -330,14 +374,38 @@ export function StoreTeam() {
         setError("");
         setNotice("");
         try {
-            await api.post(`/api/employees/store/${store.id}`, form, { headers: getAuthHeader() });
-            setForm({ fullName: "", email: "", phone: "", password: "", role: "ROLE_STORE_MANAGER" });
+            await api.post(`/api/employees/store/${store.id}`, {
+                ...form,
+                branchId: form.branchId ? Number(form.branchId) : null,
+            }, { headers: getAuthHeader() });
+            setForm({ fullName: "", email: "", phone: "", password: "", role: "ROLE_STORE_MANAGER", branchId: "" });
             setNotice("Employee account created.");
             await loadEmployees(store.id);
         } catch (requestError) {
             setError(requestError.response?.data?.message || requestError.message || "Unable to create employee.");
         } finally {
             setSaving(false);
+        }
+    }
+    async function linkEmployee(event) {
+        event.preventDefault();
+        setLinking(true);
+        setError("");
+        setNotice("");
+        try {
+            await api.post(`/api/employees/store/${store.id}/link`, {
+                ...linkForm,
+                branchId: linkForm.branchId ? Number(linkForm.branchId) : null,
+            }, { headers: getAuthHeader() });
+            setLinkForm({ email: "", role: "ROLE_STORE_MANAGER", branchId: "" });
+            setNotice(linkForm.role === "ROLE_BRANCH_CASHIER" || linkForm.role === "ROLE_BRANCH_MANAGER"
+                ? "Employee account connected and branch assignment saved."
+                : "Employee account connected to this store.");
+            await loadEmployees(store.id);
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || requestError.message || "Unable to link employee.");
+        } finally {
+            setLinking(false);
         }
     }
     async function removeEmployee(employee) {
@@ -352,8 +420,8 @@ export function StoreTeam() {
 
     return (
         <main className="mx-auto max-w-7xl p-4 md:p-8">
-            <PageHeader title="Store team" description="Manage employee accounts connected to this store." />
-            <StoreNotice error={storeError || error} notice={notice} />
+            <PageHeader title="Employees" description="Manage employee accounts connected to this store." />
+            <StoreNotice error={[storeError, error].filter(Boolean).join(" ")} notice={notice} />
             {isStoreAdmin && store && (
                 <form onSubmit={createEmployee} className="mb-5 grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2 xl:grid-cols-6">
                     {["fullName", "email", "phone", "password"].map((field) => (
@@ -362,14 +430,53 @@ export function StoreTeam() {
                         </label>
                     ))}
                     <label className="space-y-1 text-xs font-medium text-muted-foreground">Role
-                        <select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value })} className="h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground"><option value="ROLE_STORE_MANAGER">Store manager</option><option value="ROLE_BRANCH_MANAGER">Branch manager</option></select>
+                        <select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value, branchId: "" })} className="h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground"><option value="ROLE_STORE_MANAGER">Store manager</option><option value="ROLE_BRANCH_MANAGER">Branch manager</option></select>
                     </label>
-                    <button disabled={saving} className="h-10 self-end rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">{saving ? "Creating..." : "Add employee"}</button>
+                    {form.role === "ROLE_BRANCH_MANAGER" && (
+                        <label className="space-y-1 text-xs font-medium text-muted-foreground">Branch
+                            <select required value={form.branchId} onChange={(event) => setForm({ ...form, branchId: event.target.value })} disabled={branchesLoading || !branches.length} className="h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground">
+                                <option value="">{branchesLoading ? "Loading branches..." : "Select a branch"}</option>
+                                {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+                            </select>
+                        </label>
+                    )}
+                    <button disabled={saving || (form.role === "ROLE_BRANCH_MANAGER" && (!form.branchId || branchesLoading))} className="h-10 self-end rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">{saving ? "Creating..." : "Add employee"}</button>
                 </form>
             )}
-            {storeLoading ? <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">Loading team...</p> : employees.length ? (
+            {isStoreAdmin && store && (
+                <form onSubmit={linkEmployee} className="mb-5 grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-4">
+                    <div className="sm:col-span-4">
+                        <h3 className="font-semibold">Link an existing account</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">Connect an employee account to this store, or assign a branch to an existing branch employee who is currently unassigned.</p>
+                    </div>
+                    <label className="space-y-1 text-xs font-medium text-muted-foreground">Employee email
+                        <input required type="email" value={linkForm.email} onChange={(event) => setLinkForm({ ...linkForm, email: event.target.value })} className="h-10 w-full rounded-md border bg-background px-3 text-sm font-normal text-foreground" />
+                    </label>
+                    <label className="space-y-1 text-xs font-medium text-muted-foreground">Account role
+                        <select value={linkForm.role} onChange={(event) => setLinkForm({ ...linkForm, role: event.target.value, branchId: "" })} className="h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground">
+                            <option value="ROLE_STORE_MANAGER">Store manager</option>
+                            <option value="ROLE_BRANCH_MANAGER">Branch manager</option>
+                            <option value="ROLE_BRANCH_CASHIER">Branch cashier</option>
+                        </select>
+                    </label>
+                    {(linkForm.role === "ROLE_BRANCH_MANAGER" || linkForm.role === "ROLE_BRANCH_CASHIER") && (
+                        <label className="space-y-1 text-xs font-medium text-muted-foreground">Branch
+                            <select required value={linkForm.branchId} onChange={(event) => setLinkForm({ ...linkForm, branchId: event.target.value })} disabled={branchesLoading || !branches.length} className="h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground">
+                                <option value="">{branchesLoading ? "Loading branches..." : "Select a branch"}</option>
+                                {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+                            </select>
+                        </label>
+                    )}
+                    <button disabled={linking || ((linkForm.role === "ROLE_BRANCH_MANAGER" || linkForm.role === "ROLE_BRANCH_CASHIER") && (!linkForm.branchId || branchesLoading))} className="h-10 self-end rounded-md border px-4 text-sm font-medium disabled:opacity-50">{linking ? "Linking..." : "Link account"}</button>
+                </form>
+            )}
+            {storeLoading || employeesLoading ? <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">Loading employees...</p> : !store ? <StoreRequired /> : employees.length ? (
                 <section className="divide-y rounded-xl border bg-card">
-                    {employees.map((employee) => <div key={employee.id} className="flex items-center justify-between gap-3 p-4"><div><p className="font-medium">{employee.fullName}</p><p className="text-sm text-muted-foreground">{employee.email} · {employee.role}</p></div>{isStoreAdmin && <button type="button" onClick={() => removeEmployee(employee)} className="rounded-md border px-3 py-2 text-sm text-destructive hover:bg-destructive/10">Remove</button>}</div>)}
+                    {employees.map((employee) => {
+                        const branch = branches.find((item) => item.id === employee.branchId);
+                        const isBranchEmployee = employee.role === "ROLE_BRANCH_MANAGER" || employee.role === "ROLE_BRANCH_CASHIER";
+                        return <div key={employee.id} className="flex items-center justify-between gap-3 p-4"><div><p className="font-medium">{employee.fullName}</p><p className="text-sm text-muted-foreground">{employee.email} · {employee.role}{isBranchEmployee ? ` · ${branch?.name || "No branch assigned"}` : ""}</p></div>{isStoreAdmin && <button type="button" onClick={() => removeEmployee(employee)} className="rounded-md border px-3 py-2 text-sm text-destructive hover:bg-destructive/10">Remove</button>}</div>;
+                    })}
                 </section>
             ) : <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">No employees found.</p>}
         </main>
@@ -422,7 +529,7 @@ export function StoreProfile() {
                     <button disabled={saving || getSessionUser()?.role !== "ROLE_STORE_ADMIN"} className="h-10 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground disabled:opacity-50">{saving ? "Saving..." : "Save profile"}</button>
                     {getSessionUser()?.role !== "ROLE_STORE_ADMIN" && <p className="text-sm text-muted-foreground">Only a store administrator can edit this profile.</p>}
                 </form>
-            ) : <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">No store profile found.</p>}
+            ) : <StoreRequired />}
         </main>
     );
 }

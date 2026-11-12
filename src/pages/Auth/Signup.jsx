@@ -9,10 +9,9 @@ import { getHomePath } from "@/utils/session";
 
 const roles = [
     { value: "ROLE_STORE_ADMIN", label: "Store administrator" },
-    { value: "ROLE_STORE_MANAGER", label: "Store manager" },
-    { value: "ROLE_BRANCH_MANAGER", label: "Branch manager" },
-    { value: "ROLE_BRANCH_CASHIER", label: "Branch cashier" },
 ];
+
+
 
 export default function Signup() {
     const dispatch = useDispatch();
@@ -28,6 +27,7 @@ export default function Signup() {
     });
     const [formError, setFormError] = useState("");
 
+    
     async function handleSubmit(event) {
         event.preventDefault();
         setFormError("");
@@ -65,7 +65,7 @@ export default function Signup() {
                     </div>
                     <h1 className="text-2xl font-bold">Create your POS Pro account</h1>
                     <p className="mt-2 text-sm text-muted-foreground">
-                        Enter your details to get started.
+                        Create a store administrator account. Store employees are added by the administrator.
                     </p>
                 </div>
 

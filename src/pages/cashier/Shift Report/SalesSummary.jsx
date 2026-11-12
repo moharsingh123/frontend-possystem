@@ -1,39 +1,19 @@
-import { Card, CardContent } from '@/components/ui/card'
-import react from 'react'
-const shiftData={
-    totalOrders:153   ,
-    totalSales:89000,
-    totalRefund:10000,
-    netSales:50000
-}
-const SalesSummary= ()=>{
+import { Card, CardContent } from "@/components/ui/card";
+
+const currency = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" });
+
+export default function SalesSummary({ shift }) {
     return (
-       <Card>
+        <Card>
             <CardContent>
-                <h2 className='text-xl font-semibold mb-4'>Sales Summary</h2>
-
-                <div className='space-y-2'>
-                    <div className='flex justify-between'>
-                        <span className='text-muted-foreground'>Total Orders:</span>
-                        <span className='font-medium'>{shiftData.totalOrders}</span>
-                    </div>
-                    <div className='flex justify-between'>
-                        <span className='text-muted-foreground'>Total Sales:</span>
-                        <span className='font-medium'>{shiftData.totalSales}</span>
-                    </div>
-                    <div className='flex justify-between'>
-                        <span className='text-muted-foreground '>Total Refund:</span>
-                        <span className='font-medium text-red-500 '>-₹{shiftData.totalRefund}</span>
-                    </div>
-                    <div className='flex justify-between border-t-2'>
-                        <span className='text-muted-foreground'>Net Sales:</span>
-                        <span className='font-medium  '>{shiftData.netSales}</span>
-                    </div>
-
+                <h2 className="mb-4 text-xl font-semibold">Sales Summary</h2>
+                <div className="space-y-2">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Total Orders:</span><span className="font-medium">{shift?.totalOrders ?? 0}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Total Sales:</span><span className="font-medium">{currency.format(shift?.totalSales ?? 0)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Total Refunds:</span><span className="font-medium text-red-500">−{currency.format(shift?.totalRefunds ?? 0)}</span></div>
+                    <div className="flex justify-between border-t pt-2"><span className="text-muted-foreground">Net Sales:</span><span className="font-medium">{currency.format(shift?.netSale ?? 0)}</span></div>
                 </div>
             </CardContent>
-       </Card>
-    )
+        </Card>
+    );
 }
-
-export default SalesSummary

@@ -36,7 +36,7 @@ export default function CreateOrder() {
                     localStorage.setItem("user", JSON.stringify(cashier));
                 }
                 if (!cashier?.branchId) {
-                    throw new Error("Your account is not assigned to a branch. Ask an administrator to assign one.");
+                    throw new Error("Your account has no branch assignment. Ask your store administrator to assign it in Store > Employees, then refresh this page.");
                 }
 
                 const branchResponse = await api.get(`/api/branches/${cashier.branchId}`, { headers });

@@ -1,60 +1,28 @@
-import { Card, CardContent } from '@/components/ui/card'
-import {
-    Table,
-    TableHeader,
-    TableRow,
-    TableHead,
-    TableBody,
-    TableCell,
-} from '@/components/ui/table'
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const shiftData= {
-    recentOrders:[
-        {
-            id:1,
-            createdAt:'2023-06-01 10:30 AM',
-            paymenttype:'CASH',
-            totalAmount:5000
-        },
-        {
-            id:2,
-            createdAt:'2023-06-01 11:45 AM',
-            paymenttype:'CARD',
-            totalAmount:7500
-        }
-    ]
-}
-const RecentOrdersTable= ()=>{
+const currency = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" });
+
+export default function RecentOrdersTable({ shift }) {
+    const orders = shift?.recentOrders || [];
     return (
-        <div>
-            <Card>
-                <CardContent>
-                    <h2 className='text-xl font-semibold mb-4'>Recent Orders</h2>
+        <Card>
+            <CardContent>
+                <h2 className="mb-4 text-xl font-semibold">Recent Orders</h2>
+                {orders.length ? (
                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className='w-[150px]'>Order Id</TableHead>
-                                <TableHead className='w-[150px]'>Time</TableHead>
-                                <TableHead className='w-[100px]'>Payment</TableHead>
-                                <TableHead className='text-right'>Amount</TableHead>
+                        <TableHeader><TableRow><TableHead>Order ID</TableHead><TableHead>Time</TableHead><TableHead>Payment</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                        <TableBody>{orders.map((order) => (
+                            <TableRow key={order.id}>
+                                <TableCell>{order.id}</TableCell>
+                                <TableCell>{order.createdAt ? new Date(order.createdAt).toLocaleString() : "—"}</TableCell>
+                                <TableCell>{order.paymentType || "—"}</TableCell>
+                                <TableCell className="text-right">{currency.format(order.totalAmount ?? 0)}</TableCell>
                             </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {shiftData.recentOrders.map((order) => (
-                                <TableRow key={order.id}>
-                                    <TableCell>{order.id}</TableCell>
-                                    <TableCell>{order.createdAt}</TableCell>
-                                    <TableCell>{order.paymenttype}</TableCell>
-                                    <TableCell className='text-right'>₹{order.totalAmount}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
+                        ))}</TableBody>
                     </Table>
-                </CardContent>
-
-            </Card>
-        </div>
-    )
+                ) : <p className="text-sm text-muted-foreground">No orders recorded for this shift yet.</p>}
+            </CardContent>
+        </Card>
+    );
 }
-
-export default RecentOrdersTable

@@ -1,41 +1,30 @@
-import react from 'react'
-import { Card, CardContent } from '../../../components/ui/card.jsx'
+import { Card, CardContent } from "@/components/ui/card";
 
-const shiftData={
-    cashier :{
-        fullName:"Mohar singh yadav"
-    },
-    shiftStart:"2024-06-01 09:00 AM",
-    shiftEnd:"2024-06-01 05:00 PM"
+function formatDateTime(value) {
+    return value ? new Date(value).toLocaleString() : "—";
 }
-const ShiftInformation= ()=>{
+
+function formatDuration(start, end) {
+    if (!start) return "—";
+    const durationMs = Math.max(0, new Date(end || Date.now()) - new Date(start));
+    const totalMinutes = Math.floor(durationMs / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${hours}h ${minutes}m`;
+}
+
+export default function ShiftInformation({ shift }) {
     return (
-       <Card>
+        <Card>
             <CardContent>
-                <h2 className='text-xl font-semibold mb-4'>Shift Information</h2>
-
-                <div className='space-y-2'>
-                    <div className='flex justify-between'>
-                        <span className='text-muted-foreground'>Cashier:</span>
-                        <span className='font-medium'>{shiftData.cashier.fullName}</span>
-                    </div>
-                    <div className='flex justify-between'>
-                        <span className='text-muted-foreground'>Shift Start:</span>
-                        <span className='font-medium'>{shiftData.shiftStart}</span>
-                    </div>
-                    <div className='flex justify-between'>
-                        <span className='text-muted-foreground'>Shift End:</span>
-                        <span className='font-medium'>{shiftData.shiftEnd}</span>
-                    </div>
-                    <div className='flex justify-between'>
-                        <span className='text-muted-foreground '>Duration:</span>
-                        <span className='font-medium'>{"8 hours"}</span>
-                    </div>
-
+                <h2 className="mb-4 text-xl font-semibold">Shift Information</h2>
+                <div className="space-y-2">
+                    <div className="flex justify-between gap-4"><span className="text-muted-foreground">Cashier:</span><span className="text-right font-medium">{shift?.cashier?.fullName || "—"}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-muted-foreground">Shift Start:</span><span className="text-right font-medium">{formatDateTime(shift?.shiftStart)}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-muted-foreground">Shift End:</span><span className="text-right font-medium">{shift?.shiftEnd ? formatDateTime(shift.shiftEnd) : "In progress"}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-muted-foreground">Duration:</span><span className="text-right font-medium">{formatDuration(shift?.shiftStart, shift?.shiftEnd)}</span></div>
                 </div>
             </CardContent>
-       </Card>
-    )
+        </Card>
+    );
 }
-
-export default ShiftInformation
