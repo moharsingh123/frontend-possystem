@@ -129,22 +129,142 @@ export function BranchOrders() {
 }
 
 export function BranchInventory() {
-    const load = useMemo(() => (id) => api.get(`/api/inventories/branch/${id}`, { headers: getAuthHeader() }), []);
-    const { data: inventory, loading, error } = useBranchData(load);
+    const branchId = getSessionUser()?.branchId;
+    const [inventory, setInventory] = useState([]);
+    const [products, setProducts] = useState([]);
+    const [quantityDrafts, setQuantityDrafts] = useState({});
+    const [form, setForm] = useState({ productId: "", quantity: "0" });
+    const [loading, setLoading] = useState(Boolean(branchId));
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState("");
+
+    const loadInventory = useCallback(async () => {
+        if (!branchId) return;
+        const response = await api.get(`/api/inventories/branch/${branchId}`, { headers: getAuthHeader() });
+        const entries = Array.isArray(response.data) ? response.data : [];
+        setInventory(entries);
+        setQuantityDrafts(Object.fromEntries(entries.map((entry) => [entry.id, String(entry.quantity ?? 0)])));
+    }, [branchId]);
+
+    useEffect(() => {
+        let cancelled = false;
+        async function load() {
+            if (!branchId) {
+                setLoading(false);
+                return;
+            }
+            setLoading(true);
+            setError("");
+            try {
+                const headers = getAuthHeader();
+                const [branchResponse, inventoryResponse] = await Promise.all([
+                    api.get(`/api/branches/${branchId}`, { headers }),
+                    api.get(`/api/inventories/branch/${branchId}`, { headers }),
+                ]);
+                const storeId = branchResponse.data?.storeId ?? branchResponse.data?.store?.id;
+                if (!storeId) throw new Error("This branch is not linked to a store.");
+                const productResponse = await api.get(`/api/products/store/${storeId}`, { headers });
+                if (!cancelled) {
+                    const entries = Array.isArray(inventoryResponse.data) ? inventoryResponse.data : [];
+                    setInventory(entries);
+                    setQuantityDrafts(Object.fromEntries(entries.map((entry) => [entry.id, String(entry.quantity ?? 0)])));
+                    setProducts(Array.isArray(productResponse.data) ? productResponse.data : []);
+                }
+            } catch (requestError) {
+                if (!cancelled) setError(requestError.response?.data?.message || requestError.message || "Unable to load branch inventory.");
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        }
+        load();
+        return () => { cancelled = true; };
+    }, [branchId]);
+
+    const availableProducts = products.filter((product) => !inventory.some((entry) => entry.productId === product.id));
+
+    async function addInventory(event) {
+        event.preventDefault();
+        setSaving(true);
+        setError("");
+        try {
+            await api.post("/api/inventories", {
+                branchId: Number(branchId),
+                productId: Number(form.productId),
+                quantity: Number(form.quantity),
+            }, { headers: getAuthHeader() });
+            setForm({ productId: "", quantity: "0" });
+            await loadInventory();
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || requestError.message || "Unable to add stock.");
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    async function updateInventory(entry) {
+        setSaving(true);
+        setError("");
+        try {
+            await api.put(`/api/inventories/${entry.id}`, {
+                quantity: Number(quantityDrafts[entry.id]),
+            }, { headers: getAuthHeader() });
+            await loadInventory();
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || requestError.message || "Unable to update stock.");
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    async function deleteInventory(entry) {
+        if (!window.confirm(`Remove ${entry.product?.name || "this product"} from branch inventory?`)) return;
+        setError("");
+        try {
+            await api.delete(`/api/inventories/${entry.id}`, { headers: getAuthHeader() });
+            await loadInventory();
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || requestError.message || "Unable to remove stock.");
+        }
+    }
+
     return (
         <main className="mx-auto max-w-7xl p-4 md:p-8">
             <h2 className="text-2xl font-bold">Branch inventory</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Stock levels reported by the inventory service.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Add products to this branch and maintain stock quantities.</p>
             {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
+            {!branchId && <p role="alert" className="mt-4 text-sm text-destructive">Your account is not assigned to a branch.</p>}
+            {branchId && (
+                <form onSubmit={addInventory} className="mt-5 grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-[1fr_180px_auto]">
+                    <label className="space-y-1 text-xs font-medium text-muted-foreground">Product
+                        <select required value={form.productId} onChange={(event) => setForm({ ...form, productId: event.target.value })} disabled={loading || !availableProducts.length} className="h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground">
+                            <option value="">{loading ? "Loading products..." : availableProducts.length ? "Select a product" : "No untracked products"}</option>
+                            {availableProducts.map((product) => <option key={product.id} value={product.id}>{product.name} ({product.sku})</option>)}
+                        </select>
+                    </label>
+                    <label className="space-y-1 text-xs font-medium text-muted-foreground">Starting quantity
+                        <input required type="number" min="0" step="1" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} className="h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground" />
+                    </label>
+                    <button disabled={saving || loading || !form.productId} className="h-10 self-end rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">{saving ? "Saving..." : "Add to inventory"}</button>
+                </form>
+            )}
             <section className="mt-5 overflow-x-auto rounded-xl border bg-card">
                 {loading ? <p className="p-6 text-sm text-muted-foreground">Loading inventory...</p> : inventory.length ? (
                     <table className="w-full min-w-[560px] text-sm">
-                        <thead className="bg-muted/40 text-left text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Product</th><th className="px-4 py-3 font-medium">SKU</th><th className="px-4 py-3 text-right font-medium">Quantity</th><th className="px-4 py-3 text-right font-medium">Last update</th></tr></thead>
+                        <thead className="bg-muted/40 text-left text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Product</th><th className="px-4 py-3 font-medium">SKU</th><th className="px-4 py-3 font-medium">Quantity</th><th className="px-4 py-3 font-medium">Last update</th><th className="px-4 py-3 text-right font-medium">Actions</th></tr></thead>
                         <tbody className="divide-y">{inventory.map((entry) => (
-                            <tr key={entry.id}><td className="px-4 py-3 font-medium">{entry.product?.name || `Product #${entry.productId}`}</td><td className="px-4 py-3 text-muted-foreground">{entry.product?.sku || "—"}</td><td className={`px-4 py-3 text-right ${entry.quantity <= 5 ? "font-semibold text-destructive" : ""}`}>{entry.quantity ?? 0}</td><td className="px-4 py-3 text-right text-muted-foreground">{entry.lastUpdate ? new Date(entry.lastUpdate).toLocaleString() : "—"}</td></tr>
+                            <tr key={entry.id}>
+                                <td className="px-4 py-3 font-medium">{entry.product?.name || `Product #${entry.productId}`}</td>
+                                <td className="px-4 py-3 text-muted-foreground">{entry.product?.sku || "—"}</td>
+                                <td className="px-4 py-3"><input aria-label={`Quantity for ${entry.product?.name || entry.productId}`} type="number" min="0" step="1" value={quantityDrafts[entry.id] ?? ""} onChange={(event) => setQuantityDrafts({ ...quantityDrafts, [entry.id]: event.target.value })} className={`h-9 w-24 rounded-md border bg-background px-2 text-right ${entry.quantity <= 5 ? "text-destructive" : ""}`} /></td>
+                                <td className="px-4 py-3 text-muted-foreground">{entry.lastUpdate ? new Date(entry.lastUpdate).toLocaleString() : "—"}</td>
+                                <td className="space-x-2 px-4 py-3 text-right">
+                                    <button type="button" disabled={saving || quantityDrafts[entry.id] === ""} onClick={() => updateInventory(entry)} className="rounded-md border px-3 py-2 text-xs disabled:opacity-50">Save</button>
+                                    <button type="button" disabled={saving} onClick={() => deleteInventory(entry)} className="rounded-md border px-3 py-2 text-xs text-destructive disabled:opacity-50">Remove</button>
+                                </td>
+                            </tr>
                         ))}</tbody>
                     </table>
-                ) : <p className="p-6 text-sm text-muted-foreground">No inventory records found.</p>}
+                ) : <p className="p-6 text-sm text-muted-foreground">{branchId ? "No inventory records found. Add a product above to start tracking stock." : "Inventory is unavailable without a branch assignment."}</p>}
             </section>
         </main>
     );

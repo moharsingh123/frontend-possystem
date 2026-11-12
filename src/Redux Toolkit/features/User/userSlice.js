@@ -1,11 +1,8 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { getAllCashier, getAllCustomers, getUserById, getUserProfile, logout } from "./userThunk";
+import { getUserById, getUserProfile, logout } from "./userThunk";
 
 const initialState = {
     userProfile: null,
-    users: [],
-    customers: [],
-    cashiers: [],
     selectedUser: null,
     loading: false,
     error: null,
@@ -17,9 +14,6 @@ const userSlice = createSlice({
     reducers: {
         clearUserState: (state) => {
             state.userProfile = null;
-            state.users = [];
-            state.customers = [];
-            state.cashiers = [];
             state.selectedUser = null;
             state.loading = false;
             state.error = null;
@@ -36,30 +30,6 @@ const userSlice = createSlice({
                 state.userProfile = action.payload;
             })
             .addCase(getUserProfile.rejected, (state, action) => {
-                state.loading = false;
-                state.error = action.payload;
-            })
-            .addCase(getAllCustomers.fulfilled, (state, action) => {
-                state.loading = false;
-                state.customers = action.payload;
-            })
-            .addCase(getAllCustomers.pending, (state) => {
-                state.loading = true;
-                state.error = null;
-            })
-            .addCase(getAllCustomers.rejected, (state, action) => {
-                state.loading = false;
-                state.error = action.payload;
-            })
-            .addCase(getAllCashier.fulfilled, (state, action) => {
-                state.loading = false;
-                state.cashiers = action.payload;
-            })
-            .addCase(getAllCashier.pending, (state) => {
-                state.loading = true;
-                state.error = null;
-            })
-            .addCase(getAllCashier.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             })

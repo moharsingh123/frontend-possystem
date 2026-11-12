@@ -20,11 +20,11 @@ export default function WorkspaceLayout({ title, navItems }) {
                 <h1 className="px-2 text-lg font-bold">{title}</h1>
                 <p className="px-2 pt-1 text-xs text-muted-foreground">POS management workspace</p>
                 <nav aria-label={`${title} navigation`} className="mt-5 flex flex-wrap gap-2 md:flex-col">
-                    {navItems.map(({ to, label, icon: Icon }) => (
+                    {navItems.map(({ to, label, icon: Icon, end }) => (
                         <NavLink
                             key={to}
                             to={to}
-                            end={to === "."}
+                            end={end ?? to === "."}
                             className={({ isActive }) => `flex shrink-0 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
                         >
                             <Icon className="h-4 w-4" aria-hidden="true" />

@@ -164,8 +164,10 @@ export function StoreBranches() {
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
     const [saving, setSaving] = useState(false);
+    const [editingId, setEditingId] = useState(null);
     const isStoreAdmin = getSessionUser()?.role === "ROLE_STORE_ADMIN";
-    const [form, setForm] = useState({ name: "", address: "", phone: "", email: "", openTime: "09:00", closeTime: "18:00" });
+    const emptyForm = { name: "", address: "", phone: "", email: "", openTime: "09:00", closeTime: "18:00", workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] };
+    const [form, setForm] = useState(emptyForm);
 
     async function loadBranches(storeId) {
         setLoading(true);
@@ -183,26 +185,60 @@ export function StoreBranches() {
         if (store?.id) loadBranches(store.id);
     }, [store?.id]);
 
-    async function createBranch(event) {
+    async function saveBranch(event) {
         event.preventDefault();
         setSaving(true);
         setError("");
         setNotice("");
         try {
-            await api.post("/api/branches", {
+            const branch = {
                 ...form,
                 storeId: store.id,
-                workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"],
                 openTime: `${form.openTime}:00`,
                 closeTime: `${form.closeTime}:00`,
-            }, { headers: getAuthHeader() });
-            setForm({ name: "", address: "", phone: "", email: "", openTime: "09:00", closeTime: "18:00" });
-            setNotice("Branch created.");
+            };
+            if (editingId) {
+                await api.put(`/api/branches/${editingId}`, branch, { headers: getAuthHeader() });
+                setNotice("Branch updated.");
+            } else {
+                await api.post("/api/branches", branch, { headers: getAuthHeader() });
+                setNotice("Branch created.");
+            }
+            setForm(emptyForm);
+            setEditingId(null);
             await loadBranches(store.id);
         } catch (requestError) {
-            setError(requestError.response?.data?.message || requestError.message || "Unable to create branch.");
+            setError(requestError.response?.data?.message || requestError.message || "Unable to save branch.");
         } finally {
             setSaving(false);
+        }
+    }
+
+    function editBranch(branch) {
+        setEditingId(branch.id);
+        setForm({
+            name: branch.name || "",
+            address: branch.address || "",
+            phone: branch.phone || "",
+            email: branch.email || "",
+            openTime: (branch.openTime || "09:00").slice(0, 5),
+            closeTime: (branch.closeTime || "18:00").slice(0, 5),
+            workingDays: branch.workingDays || [],
+        });
+        setNotice("");
+        setError("");
+    }
+
+    async function deleteBranch(branch) {
+        if (!window.confirm(`Delete branch "${branch.name}"?`)) return;
+        setError("");
+        setNotice("");
+        try {
+            await api.delete(`/api/branches/${branch.id}`, { headers: getAuthHeader() });
+            setNotice("Branch deleted.");
+            await loadBranches(store.id);
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || requestError.message || "Unable to delete branch.");
         }
     }
 
@@ -211,7 +247,7 @@ export function StoreBranches() {
             <PageHeader title="Branches" description="Manage locations linked to your store." />
             <StoreNotice error={storeError || error} notice={notice} />
             {isStoreAdmin && store && (
-                <form onSubmit={createBranch} className="mb-5 grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2 xl:grid-cols-4">
+                <form onSubmit={saveBranch} className="mb-5 grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2 xl:grid-cols-4">
                     {["name", "address", "phone", "email"].map((field) => (
                         <label key={field} className="space-y-1 text-xs font-medium capitalize text-muted-foreground">
                             {field}
@@ -220,7 +256,16 @@ export function StoreBranches() {
                     ))}
                     <label className="space-y-1 text-xs font-medium text-muted-foreground">Opening time<input type="time" value={form.openTime} onChange={(event) => setForm({ ...form, openTime: event.target.value })} className="h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground" /></label>
                     <label className="space-y-1 text-xs font-medium text-muted-foreground">Closing time<input type="time" value={form.closeTime} onChange={(event) => setForm({ ...form, closeTime: event.target.value })} className="h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground" /></label>
-                    <button disabled={saving} className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"><Plus className="h-4 w-4" />{saving ? "Creating..." : "Add branch"}</button>
+                    <fieldset className="sm:col-span-2 xl:col-span-4">
+                        <legend className="mb-2 text-xs font-medium text-muted-foreground">Working days</legend>
+                        <div className="flex flex-wrap gap-3">{["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"].map((day) => (
+                            <label key={day} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={form.workingDays.includes(day)} onChange={(event) => setForm({ ...form, workingDays: event.target.checked ? [...form.workingDays, day] : form.workingDays.filter((item) => item !== day) })} />{day.slice(0, 3)}</label>
+                        ))}</div>
+                    </fieldset>
+                    <div className="flex gap-2 sm:col-span-2 xl:col-span-4">
+                        <button disabled={saving} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"><Plus className="h-4 w-4" />{saving ? "Saving..." : editingId ? "Save branch" : "Add branch"}</button>
+                        {editingId && <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm); }} className="h-10 rounded-md border px-4 text-sm">Cancel</button>}
+                    </div>
                 </form>
             )}
             {storeLoading || loading ? <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">Loading branches...</p> : branches.length ? (
@@ -231,6 +276,8 @@ export function StoreBranches() {
                             <p className="mt-2 text-sm text-muted-foreground">{branch.address || "No address"}</p>
                             <p className="mt-3 text-sm">{branch.phone || "No phone"}{branch.email ? ` · ${branch.email}` : ""}</p>
                             <p className="mt-1 text-xs text-muted-foreground">{branch.openTime || "—"} – {branch.closeTime || "—"}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{branch.workingDays?.join(", ") || "No working days set"}</p>
+                            {isStoreAdmin && <div className="mt-4 flex gap-2"><button type="button" onClick={() => editBranch(branch)} className="rounded-md border px-3 py-2 text-sm">Edit</button><button type="button" onClick={() => deleteBranch(branch)} className="rounded-md border px-3 py-2 text-sm text-destructive">Delete</button></div>}
                         </article>
                     ))}
                 </div>
@@ -246,7 +293,9 @@ export function StoreProducts() {
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
     const [saving, setSaving] = useState(false);
-    const [form, setForm] = useState({ name: "", sku: "", brand: "", mrp: "", sellingPrice: "", categoryId: "" });
+    const [editingId, setEditingId] = useState(null);
+    const emptyForm = { name: "", sku: "", brand: "", description: "", image: "", mrp: "", sellingPrice: "", categoryId: "" };
+    const [form, setForm] = useState(emptyForm);
 
     async function loadProducts(storeId) {
         setError("");
@@ -270,28 +319,66 @@ export function StoreProducts() {
         if (store?.id) loadProducts(store.id);
     }, [store?.id]);
 
-    async function createProduct(event) {
+    async function saveProduct(event) {
         event.preventDefault();
         setSaving(true);
         setError("");
         setNotice("");
         try {
-            await api.post("/api/products", {
+            const product = {
                 name: form.name,
                 sku: form.sku,
                 brand: form.brand,
+                description: form.description,
+                image: form.image,
                 mrp: Number(form.mrp),
                 sellingPrice: Number(form.sellingPrice),
                 storeId: store.id,
                 categoryId: form.categoryId ? Number(form.categoryId) : null,
-            }, { headers: getAuthHeader() });
-            setForm({ name: "", sku: "", brand: "", mrp: "", sellingPrice: "", categoryId: "" });
-            setNotice("Product added.");
+            };
+            if (editingId) {
+                await api.patch(`/api/products/${editingId}`, product, { headers: getAuthHeader() });
+                setNotice("Product updated.");
+            } else {
+                await api.post("/api/products", product, { headers: getAuthHeader() });
+                setNotice("Product added.");
+            }
+            setForm(emptyForm);
+            setEditingId(null);
             await loadProducts(store.id);
         } catch (requestError) {
-            setError(requestError.response?.data?.message || requestError.message || "Unable to add product.");
+            setError(requestError.response?.data?.message || requestError.message || "Unable to save product.");
         } finally {
             setSaving(false);
+        }
+    }
+
+    function editProduct(product) {
+        setEditingId(product.id);
+        setForm({
+            name: product.name || "",
+            sku: product.sku || "",
+            brand: product.brand || "",
+            description: product.description || "",
+            image: product.image || "",
+            mrp: String(product.mrp ?? ""),
+            sellingPrice: String(product.sellingPrice ?? ""),
+            categoryId: product.category?.id ? String(product.category.id) : "",
+        });
+        setNotice("");
+        setError("");
+    }
+
+    async function deleteProduct(product) {
+        if (!window.confirm(`Delete product "${product.name}"?`)) return;
+        setError("");
+        setNotice("");
+        try {
+            await api.delete(`/api/products/${product.id}`, { headers: getAuthHeader() });
+            setNotice("Product deleted.");
+            await loadProducts(store.id);
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || requestError.message || "Unable to delete product.");
         }
     }
 
@@ -300,23 +387,29 @@ export function StoreProducts() {
             <PageHeader title="Product catalogue" description="Products are shared across branches in this store." />
             <StoreNotice error={storeError || error} notice={notice} />
             {getSessionUser()?.role === "ROLE_STORE_ADMIN" && store && (
-                <form onSubmit={createProduct} className="mb-5 grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2 xl:grid-cols-6">
-                    {["name", "sku", "brand", "mrp", "sellingPrice"].map((field) => (
+                <form onSubmit={saveProduct} className="mb-5 grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2 xl:grid-cols-4">
+                    {["name", "sku", "brand", "mrp", "sellingPrice", "image"].map((field) => (
                         <label key={field} className="space-y-1 text-xs font-medium capitalize text-muted-foreground">{field === "sellingPrice" ? "Selling price" : field}
-                            <input required={field === "name" || field === "sku" || field === "mrp" || field === "sellingPrice"} type={field === "mrp" || field === "sellingPrice" ? "number" : "text"} min={field === "mrp" || field === "sellingPrice" ? "0" : undefined} step={field === "mrp" || field === "sellingPrice" ? "0.01" : undefined} value={form[field]} onChange={(event) => setForm({ ...form, [field]: event.target.value })} className="h-10 w-full rounded-md border bg-background px-3 text-sm font-normal text-foreground" />
+                            <input required={field === "name" || field === "sku" || field === "mrp" || field === "sellingPrice"} type={field === "mrp" || field === "sellingPrice" ? "number" : field === "image" ? "url" : "text"} min={field === "mrp" || field === "sellingPrice" ? "0" : undefined} step={field === "mrp" || field === "sellingPrice" ? "0.01" : undefined} value={form[field]} onChange={(event) => setForm({ ...form, [field]: event.target.value })} className="h-10 w-full rounded-md border bg-background px-3 text-sm font-normal text-foreground" />
                         </label>
                     ))}
+                    <label className="space-y-1 text-xs font-medium text-muted-foreground sm:col-span-2">Description
+                        <textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="min-h-10 w-full rounded-md border bg-background px-3 py-2 text-sm font-normal text-foreground" />
+                    </label>
                     <label className="space-y-1 text-xs font-medium text-muted-foreground">Category
                         <select value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })} className="h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground"><option value="">Uncategorized</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
                     </label>
-                    <button disabled={saving} className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">{saving ? "Saving..." : "Add product"}</button>
+                    <div className="flex items-end gap-2">
+                        <button disabled={saving} className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">{saving ? "Saving..." : editingId ? "Save changes" : "Add product"}</button>
+                        {editingId && <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm); }} className="h-10 rounded-md border px-4 text-sm">Cancel</button>}
+                    </div>
                 </form>
             )}
             {storeLoading ? <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">Loading products...</p> : products.length ? (
                 <section className="overflow-x-auto rounded-xl border bg-card">
-                    <table className="w-full min-w-[620px] text-sm">
-                        <thead className="bg-muted/40 text-left text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Product</th><th className="px-4 py-3 font-medium">SKU</th><th className="px-4 py-3 font-medium">Category</th><th className="px-4 py-3 text-right font-medium">Price</th></tr></thead>
-                        <tbody className="divide-y">{products.map((product) => <tr key={product.id}><td className="px-4 py-3 font-medium">{product.name}</td><td className="px-4 py-3 text-muted-foreground">{product.sku}</td><td className="px-4 py-3">{product.category?.name || "—"}</td><td className="px-4 py-3 text-right">{Number(product.sellingPrice || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td></tr>)}</tbody>
+                    <table className="w-full min-w-[800px] text-sm">
+                        <thead className="bg-muted/40 text-left text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Product</th><th className="px-4 py-3 font-medium">SKU</th><th className="px-4 py-3 font-medium">Category</th><th className="px-4 py-3 font-medium">Details</th><th className="px-4 py-3 text-right font-medium">Price</th>{getSessionUser()?.role === "ROLE_STORE_ADMIN" && <th className="px-4 py-3 text-right font-medium">Actions</th>}</tr></thead>
+                        <tbody className="divide-y">{products.map((product) => <tr key={product.id}><td className="px-4 py-3 font-medium">{product.image && <img src={product.image} alt="" className="mb-2 h-12 w-12 rounded object-cover" />}{product.name}</td><td className="px-4 py-3 text-muted-foreground">{product.sku}</td><td className="px-4 py-3">{product.category?.name || "—"}</td><td className="max-w-xs px-4 py-3 text-muted-foreground">{product.description || "—"}</td><td className="px-4 py-3 text-right">{Number(product.sellingPrice || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td>{getSessionUser()?.role === "ROLE_STORE_ADMIN" && <td className="space-x-2 px-4 py-3 text-right"><button type="button" onClick={() => editProduct(product)} className="rounded-md border px-3 py-2 text-xs">Edit</button><button type="button" onClick={() => deleteProduct(product)} className="rounded-md border px-3 py-2 text-xs text-destructive">Delete</button></td>}</tr>)}</tbody>
                     </table>
                 </section>
             ) : store ? <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">No products in this store yet.</p> : !storeLoading && <StoreRequired />}
