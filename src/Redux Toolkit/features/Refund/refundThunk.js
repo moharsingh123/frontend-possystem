@@ -7,7 +7,7 @@ export const createRefund = createAsyncThunk(
     async (refundDTO, { rejectWithValue }) => {
         try {
             const headers = getAuthHeader();
-            const res = await api.post("api/refunds", dto, {
+            const res = await api.post("/api/refunds", refundDTO, {
                 headers: headers,
             });
             console.log("create refund success", res.data);
@@ -104,15 +104,14 @@ export const getRefundsByShift = createAsyncThunk(
 );
 export const getRefundsByCashierAndDateRange = createAsyncThunk(
     "/refund/getByCashierAndDateRang",
-    async ({ cashierId, from, to }, { rejectWithValue }) => {
+    async ({ cashierId, startDate, endDate }, { rejectWithValue }) => {
         try {
             const headers = getAuthHeader();
-            const formattedFrom = encodeURIComponent(from);
-            const formattedFTo = encodeURIComponent(to);
             const res = await api.get(
-                `api/refunds/cashier/${cashierId}/range?from=${formattedFrom}&to=${formattedFTo}`,
+                `/api/refunds/cashier/${cashierId}/range`,
                 {
                     headers: headers,
+                    params: { startDate, endDate },
                 },
             );
             console.log("get by date range success", res.data);

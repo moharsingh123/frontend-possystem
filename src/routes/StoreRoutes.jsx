@@ -1,12 +1,14 @@
-import { Boxes, GitBranch, LayoutDashboard, Settings2, Tags, UsersRound } from "lucide-react";
+import { BarChart3, Boxes, GitBranch, LayoutDashboard, Settings2, Tags, UsersRound } from "lucide-react";
 import { Navigate, Route, Routes } from "react-router";
 import WorkspaceLayout from "@/components/WorkspaceLayout";
 import { StoreBranches, StoreDashboard, StoreEmployees, StoreProducts, StoreProfile } from "@/pages/store/StorePages";
 import StoreCategories from "@/pages/store/StoreCategories";
+import StoreSalesAnalytics from "@/pages/store/StoreSalesAnalytics";
 
 
 const navigation = [
     { to: "/store", label: "Overview", icon: LayoutDashboard, end: true },
+    { to: "/store/analytics", label: "Sales analytics", icon: BarChart3, end: true },
     { to: "/store/branches", label: "Branches", icon: GitBranch, end: true },
     { to: "/store/products", label: "Products", icon: Boxes, end: true },
     { to: "/store/categories", label: "Categories", icon: Tags, end: true },
@@ -19,6 +21,7 @@ export default function StoreRoutes() {
         <Routes>
             <Route element={<WorkspaceLayout title="Store workspace" navItems={navigation} />}>
                 <Route index element={<StoreDashboard />} />
+                <Route path="analytics" element={<StoreSalesAnalytics />} />
                 <Route path="branches" element={<StoreBranches />} />
                 <Route path="products" element={<StoreProducts />} />
                 <Route path="categories" element={<StoreCategories />} />

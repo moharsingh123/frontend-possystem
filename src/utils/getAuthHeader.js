@@ -1,7 +1,10 @@
 export const getAuthToken = () => {
-    const token = localStorage.getItem("jwt");
+    const storedToken = localStorage.getItem("jwt");
+    const token = storedToken?.replace(/^Bearer\s*/i, "").trim();
     if (!token) {
-        throw new Error("No token found in local storage");
+        localStorage.removeItem("jwt");
+        localStorage.removeItem("user");
+        throw new Error("Your session token is missing. Please sign in again.");
     }
     return token;
 };

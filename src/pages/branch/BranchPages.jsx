@@ -4,6 +4,13 @@ import api from "@/utils/api";
 import { getAuthHeader } from "@/utils/getAuthHeader";
 import { getSessionUser } from "@/utils/session";
 
+function matchesIdOrName(item, query) {
+    const searchTerm = query.trim().toLowerCase();
+    return !searchTerm ||
+        String(item.id ?? "").toLowerCase().includes(searchTerm) ||
+        String(item.name ?? item.fullName ?? "").toLowerCase().includes(searchTerm);
+}
+
 function useBranchData(load) {
     const branchId = getSessionUser()?.branchId;
     const [data, setData] = useState([]);
@@ -273,6 +280,7 @@ export function BranchInventory() {
 export function BranchEmployees() {
     const branchId = getSessionUser()?.branchId;
     const [employees, setEmployees] = useState([]);
+    const [employeeSearch, setEmployeeSearch] = useState("");
     const [form, setForm] = useState({ fullName: "", email: "", phone: "", password: "" });
     const [loading, setLoading] = useState(Boolean(branchId));
     const [saving, setSaving] = useState(false);
@@ -321,6 +329,8 @@ export function BranchEmployees() {
         }
     }
 
+    const filteredEmployees = employees.filter((employee) => matchesIdOrName(employee, employeeSearch));
+
     return (
         <main className="mx-auto max-w-7xl p-4 md:p-8">
             <h2 className="text-2xl font-bold">Branch team</h2>
@@ -336,12 +346,27 @@ export function BranchEmployees() {
                 <button disabled={saving || !branchId} className="self-end rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">{saving ? "Creating..." : "Add cashier"}</button>
             </form>
             <section className="mt-5 overflow-hidden rounded-xl border bg-card">
-                {loading ? <p className="p-6 text-sm text-muted-foreground">Loading team...</p> : employees.length ? employees.map((employee) => (
-                    <div key={employee.id} className="flex items-center justify-between border-b p-4 last:border-0">
-                        <div><p className="font-medium">{employee.fullName}</p><p className="text-sm text-muted-foreground">{employee.email} · {employee.role}</p></div>
-                        <button type="button" onClick={() => removeEmployee(employee)} className="rounded-md border px-3 py-2 text-sm text-destructive hover:bg-destructive/10">Remove</button>
-                    </div>
-                )) : <p className="p-6 text-sm text-muted-foreground">No employees found.</p>}
+                {loading ? <p className="p-6 text-sm text-muted-foreground">Loading team...</p> : employees.length ? (
+                    <>
+                        <div className="border-b p-4">
+                            <label className="sr-only" htmlFor="branch-employee-search">Search employees by ID or name</label>
+                            <input
+                                id="branch-employee-search"
+                                type="search"
+                                value={employeeSearch}
+                                onChange={(event) => setEmployeeSearch(event.target.value)}
+                                placeholder="Search employees by ID or name"
+                                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                            />
+                        </div>
+                        {filteredEmployees.length ? filteredEmployees.map((employee) => (
+                            <div key={employee.id} className="flex items-center justify-between border-b p-4 last:border-0">
+                                <div><p className="font-medium">{employee.fullName}</p><p className="text-sm text-muted-foreground">{employee.email} · {employee.role}</p></div>
+                                <button type="button" onClick={() => removeEmployee(employee)} className="rounded-md border px-3 py-2 text-sm text-destructive hover:bg-destructive/10">Remove</button>
+                            </div>
+                        )) : <p className="p-6 text-sm text-muted-foreground">No employees match your search.</p>}
+                    </>
+                ) : <p className="p-6 text-sm text-muted-foreground">No employees found.</p>}
             </section>
         </main>
     );

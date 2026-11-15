@@ -5,6 +5,13 @@ import api from "@/utils/api";
 import { getAuthHeader } from "@/utils/getAuthHeader";
 import { getSessionUser } from "@/utils/session";
 
+function matchesIdOrName(item, query) {
+    const searchTerm = query.trim().toLowerCase();
+    return !searchTerm ||
+        String(item.id ?? "").toLowerCase().includes(searchTerm) ||
+        String(item.name ?? item.fullName ?? "").toLowerCase().includes(searchTerm);
+}
+
 function useStore() {
     const [store, setStore] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -160,6 +167,7 @@ function StoreSetup({ onCreated }) {
 export function StoreBranches() {
     const { store, loading: storeLoading, error: storeError } = useStore();
     const [branches, setBranches] = useState([]);
+    const [branchSearch, setBranchSearch] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
@@ -242,6 +250,8 @@ export function StoreBranches() {
         }
     }
 
+    const filteredBranches = branches.filter((branch) => matchesIdOrName(branch, branchSearch));
+
     return (
         <main className="mx-auto max-w-7xl p-4 md:p-8">
             <PageHeader title="Branches" description="Manage locations linked to your store." />
@@ -269,18 +279,32 @@ export function StoreBranches() {
                 </form>
             )}
             {storeLoading || loading ? <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">Loading branches...</p> : branches.length ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                    {branches.map((branch) => (
-                        <article key={branch.id} className="rounded-xl border bg-card p-5">
-                            <h3 className="font-semibold">{branch.name}</h3>
-                            <p className="mt-2 text-sm text-muted-foreground">{branch.address || "No address"}</p>
-                            <p className="mt-3 text-sm">{branch.phone || "No phone"}{branch.email ? ` · ${branch.email}` : ""}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">{branch.openTime || "—"} – {branch.closeTime || "—"}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">{branch.workingDays?.join(", ") || "No working days set"}</p>
-                            {isStoreAdmin && <div className="mt-4 flex gap-2"><button type="button" onClick={() => editBranch(branch)} className="rounded-md border px-3 py-2 text-sm">Edit</button><button type="button" onClick={() => deleteBranch(branch)} className="rounded-md border px-3 py-2 text-sm text-destructive">Delete</button></div>}
-                        </article>
-                    ))}
-                </div>
+                <>
+                    <label className="mb-4 block">
+                        <span className="sr-only">Search branches by ID or name</span>
+                        <input
+                            type="search"
+                            value={branchSearch}
+                            onChange={(event) => setBranchSearch(event.target.value)}
+                            placeholder="Search branches by ID or name"
+                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        />
+                    </label>
+                    {filteredBranches.length ? (
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {filteredBranches.map((branch) => (
+                                <article key={branch.id} className="rounded-xl border bg-card p-5">
+                                    <h3 className="font-semibold">{branch.name}</h3>
+                                    <p className="mt-2 text-sm text-muted-foreground">{branch.address || "No address"}</p>
+                                    <p className="mt-3 text-sm">{branch.phone || "No phone"}{branch.email ? ` · ${branch.email}` : ""}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">{branch.openTime || "—"} – {branch.closeTime || "—"}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">{branch.workingDays?.join(", ") || "No working days set"}</p>
+                                    {isStoreAdmin && <div className="mt-4 flex gap-2"><button type="button" onClick={() => editBranch(branch)} className="rounded-md border px-3 py-2 text-sm">Edit</button><button type="button" onClick={() => deleteBranch(branch)} className="rounded-md border px-3 py-2 text-sm text-destructive">Delete</button></div>}
+                                </article>
+                            ))}
+                        </div>
+                    ) : <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">No branches match your search.</p>}
+                </>
             ) : <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">{store ? "No branches found." : "Create or connect a store profile before managing branches."}</p>}
         </main>
     );
@@ -420,6 +444,7 @@ export function StoreProducts() {
 export function StoreEmployees() {
     const { store, loading: storeLoading, error: storeError } = useStore();
     const [employees, setEmployees] = useState([]);
+    const [employeeSearch, setEmployeeSearch] = useState("");
     const [branches, setBranches] = useState([]);
     const [employeesLoading, setEmployeesLoading] = useState(false);
     const [branchesLoading, setBranchesLoading] = useState(false);
@@ -511,6 +536,8 @@ export function StoreEmployees() {
         }
     }
 
+    const filteredEmployees = employees.filter((employee) => matchesIdOrName(employee, employeeSearch));
+
     return (
         <main className="mx-auto max-w-7xl p-4 md:p-8">
             <PageHeader title="Employees" description="Manage employee accounts connected to this store." />
@@ -564,13 +591,27 @@ export function StoreEmployees() {
                 </form>
             )}
             {storeLoading || employeesLoading ? <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">Loading employees...</p> : !store ? <StoreRequired /> : employees.length ? (
-                <section className="divide-y rounded-xl border bg-card">
-                    {employees.map((employee) => {
-                        const branch = branches.find((item) => item.id === employee.branchId);
-                        const isBranchEmployee = employee.role === "ROLE_BRANCH_MANAGER" || employee.role === "ROLE_BRANCH_CASHIER";
-                        return <div key={employee.id} className="flex items-center justify-between gap-3 p-4"><div><p className="font-medium">{employee.fullName}</p><p className="text-sm text-muted-foreground">{employee.email} · {employee.role}{isBranchEmployee ? ` · ${branch?.name || "No branch assigned"}` : ""}</p></div>{isStoreAdmin && <button type="button" onClick={() => removeEmployee(employee)} className="rounded-md border px-3 py-2 text-sm text-destructive hover:bg-destructive/10">Remove</button>}</div>;
-                    })}
-                </section>
+                <>
+                    <label className="mb-4 block">
+                        <span className="sr-only">Search employees by ID or name</span>
+                        <input
+                            type="search"
+                            value={employeeSearch}
+                            onChange={(event) => setEmployeeSearch(event.target.value)}
+                            placeholder="Search employees by ID or name"
+                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        />
+                    </label>
+                    {filteredEmployees.length ? (
+                        <section className="divide-y rounded-xl border bg-card">
+                            {filteredEmployees.map((employee) => {
+                                const branch = branches.find((item) => item.id === employee.branchId);
+                                const isBranchEmployee = employee.role === "ROLE_BRANCH_MANAGER" || employee.role === "ROLE_BRANCH_CASHIER";
+                                return <div key={employee.id} className="flex items-center justify-between gap-3 p-4"><div><p className="font-medium">{employee.fullName}</p><p className="text-sm text-muted-foreground">{employee.email} · {employee.role}{isBranchEmployee ? ` · ${branch?.name || "No branch assigned"}` : ""}</p></div>{isStoreAdmin && <button type="button" onClick={() => removeEmployee(employee)} className="rounded-md border px-3 py-2 text-sm text-destructive hover:bg-destructive/10">Remove</button>}</div>;
+                            })}
+                        </section>
+                    ) : <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">No employees match your search.</p>}
+                </>
             ) : <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">No employees found.</p>}
         </main>
     );
