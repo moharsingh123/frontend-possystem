@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeftIcon } from "lucide-react";
+import ProductImage from "@/components/ProductImage";
 import {
     Table,
     TableHeader,
@@ -85,7 +86,6 @@ const OrderDetailsSection =({handleSelectOrder , selectedOrder})=>{
                                         items.map((item, index) => {
                                             const product = item.product || {};
 
-                                            // Support common image field names
                                             const productImage =
                                                 product.image ||
                                                 product.images?.[0] ||
@@ -121,21 +121,12 @@ const OrderDetailsSection =({handleSelectOrder , selectedOrder})=>{
                                                         `${product._id || productName}-${index}`
                                                     }
                                                 >
-                                                    {/* Product Image */}
                                                     <TableCell>
-                                                        <div className="w-11 h-11">
-                                                            {productImage ? (
-                                                                <img
-                                                                    src={productImage}
-                                                                    alt={productName}
-                                                                    className="w-11 h-11 object-cover rounded-md"
-                                                                />
-                                                            ) : (
-                                                                <div className="w-11 h-11 rounded-md bg-gray-100 flex items-center justify-center text-xs text-gray-500">
-                                                                    No image
-                                                                </div>
-                                                            )}
-                                                        </div>
+                                                        <ProductImage
+                                                            src={productImage}
+                                                            alt={productName}
+                                                            className="h-11 w-11 rounded-md object-cover"
+                                                        />
                                                     </TableCell>
 
                                                     {/* Product Details */}

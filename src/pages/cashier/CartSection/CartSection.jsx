@@ -1,4 +1,5 @@
 import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import ProductImage from "@/components/ProductImage";
 
 export default function CartSection({ items, onQuantityChange }) {
     const subtotal = items.reduce((sum, item) => sum + Number(item.sellingPrice) * item.quantity, 0);
@@ -18,6 +19,11 @@ export default function CartSection({ items, onQuantityChange }) {
                 <ul className="max-h-72 divide-y overflow-auto">
                     {items.map((item) => (
                         <li key={item.id} className="flex items-center justify-between gap-3 py-3">
+                            <ProductImage
+                                src={item.image}
+                                alt={item.name}
+                                className="h-12 w-12 shrink-0 rounded-md object-cover"
+                            />
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-medium">{item.name}</p>
                                 <p className="text-xs text-muted-foreground">

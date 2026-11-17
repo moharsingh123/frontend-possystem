@@ -318,8 +318,35 @@ export function StoreProducts() {
     const [notice, setNotice] = useState("");
     const [saving, setSaving] = useState(false);
     const [editingId, setEditingId] = useState(null);
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [imagePreview, setImagePreview] = useState("");
     const emptyForm = { name: "", sku: "", brand: "", description: "", image: "", mrp: "", sellingPrice: "", categoryId: "" };
     const [form, setForm] = useState(emptyForm);
+
+    function handleImageSelection(event) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+            setError("Choose a JPG, PNG, or WebP image.");
+            event.target.value = "";
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            setError("Product images must be 5 MB or smaller.");
+            event.target.value = "";
+            return;
+        }
+
+        setError("");
+        setSelectedImage(file);
+        const reader = new FileReader();
+        reader.onload = () => {
+            if (typeof reader.result === "string") setImagePreview(reader.result);
+        };
+        reader.onerror = () => setError("Unable to preview the selected image.");
+        reader.readAsDataURL(file);
+    }
 
     async function loadProducts(storeId) {
         setError("");
@@ -349,12 +376,27 @@ export function StoreProducts() {
         setError("");
         setNotice("");
         try {
+            let image = form.image;
+            if (selectedImage) {
+                const imageForm = new FormData();
+                imageForm.append("file", selectedImage);
+                const response = await api.post("/api/products/images", imageForm, {
+                    headers: {
+                        Authorization: getAuthHeader().Authorization,
+                        "Content-Type": "multipart/form-data",
+                    },
+                });
+                if (!response.data?.imageUrl) {
+                    throw new Error("Image upload did not return an image URL.");
+                }
+                image = response.data.imageUrl;
+            }
             const product = {
                 name: form.name,
                 sku: form.sku,
                 brand: form.brand,
                 description: form.description,
-                image: form.image,
+                image,
                 mrp: Number(form.mrp),
                 sellingPrice: Number(form.sellingPrice),
                 storeId: store.id,
@@ -369,6 +411,8 @@ export function StoreProducts() {
             }
             setForm(emptyForm);
             setEditingId(null);
+            setSelectedImage(null);
+            setImagePreview("");
             await loadProducts(store.id);
         } catch (requestError) {
             setError(requestError.response?.data?.message || requestError.message || "Unable to save product.");
@@ -379,6 +423,8 @@ export function StoreProducts() {
 
     function editProduct(product) {
         setEditingId(product.id);
+        setSelectedImage(null);
+        setImagePreview(product.image || "");
         setForm({
             name: product.name || "",
             sku: product.sku || "",
@@ -412,11 +458,17 @@ export function StoreProducts() {
             <StoreNotice error={storeError || error} notice={notice} />
             {getSessionUser()?.role === "ROLE_STORE_ADMIN" && store && (
                 <form onSubmit={saveProduct} className="mb-5 grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2 xl:grid-cols-4">
-                    {["name", "sku", "brand", "mrp", "sellingPrice", "image"].map((field) => (
+                    {["name", "sku", "brand", "mrp", "sellingPrice"].map((field) => (
                         <label key={field} className="space-y-1 text-xs font-medium capitalize text-muted-foreground">{field === "sellingPrice" ? "Selling price" : field}
-                            <input required={field === "name" || field === "sku" || field === "mrp" || field === "sellingPrice"} type={field === "mrp" || field === "sellingPrice" ? "number" : field === "image" ? "url" : "text"} min={field === "mrp" || field === "sellingPrice" ? "0" : undefined} step={field === "mrp" || field === "sellingPrice" ? "0.01" : undefined} value={form[field]} onChange={(event) => setForm({ ...form, [field]: event.target.value })} className="h-10 w-full rounded-md border bg-background px-3 text-sm font-normal text-foreground" />
+                            <input required={field === "name" || field === "sku" || field === "mrp" || field === "sellingPrice"} type={field === "mrp" || field === "sellingPrice" ? "number" : "text"} min={field === "mrp" || field === "sellingPrice" ? "0" : undefined} step={field === "mrp" || field === "sellingPrice" ? "0.01" : undefined} value={form[field]} onChange={(event) => setForm({ ...form, [field]: event.target.value })} className="h-10 w-full rounded-md border bg-background px-3 text-sm font-normal text-foreground" />
                         </label>
                     ))}
+                    <div className="space-y-1 text-xs font-medium text-muted-foreground">
+                        <label htmlFor="product-image">Product image</label>
+                        <input id="product-image" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageSelection} className="block w-full cursor-pointer rounded-md border bg-background text-sm font-normal text-foreground file:mr-3 file:border-0 file:bg-muted file:px-3 file:py-2 file:text-xs file:font-medium" />
+                        <p className="text-[11px] font-normal">Choose from your device or photo gallery. JPG, PNG, or WebP, up to 5 MB.</p>
+                        {imagePreview && <div className="flex items-center gap-3 pt-2"><img src={imagePreview} alt="Product image preview" className="h-16 w-16 rounded-md border object-cover" /><button type="button" onClick={() => { setSelectedImage(null); setImagePreview(""); setForm({ ...form, image: "" }); }} className="rounded-md border px-3 py-2 text-xs text-foreground">Remove image</button></div>}
+                    </div>
                     <label className="space-y-1 text-xs font-medium text-muted-foreground sm:col-span-2">Description
                         <textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="min-h-10 w-full rounded-md border bg-background px-3 py-2 text-sm font-normal text-foreground" />
                     </label>
@@ -425,7 +477,7 @@ export function StoreProducts() {
                     </label>
                     <div className="flex items-end gap-2">
                         <button disabled={saving} className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">{saving ? "Saving..." : editingId ? "Save changes" : "Add product"}</button>
-                        {editingId && <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm); }} className="h-10 rounded-md border px-4 text-sm">Cancel</button>}
+                        {editingId && <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm); setSelectedImage(null); setImagePreview(""); }} className="h-10 rounded-md border px-4 text-sm">Cancel</button>}
                     </div>
                 </form>
             )}

@@ -11,7 +11,7 @@ export default function WorkspaceLayout({ title, navItems }) {
 
     function handleLogout() {
         dispatch(logout());
-        navigate("/login", { replace: true });
+        navigate("/", { replace: true });
     }
 
     return (

@@ -15,6 +15,11 @@ export default function Login() {
     const [credentials, setCredentials] = useState({ email: "", password: "" });
     const [accessError, setAccessError] = useState("");
 
+    function handleClearAuth() {
+        dispatch(clearAuth());
+        navigate("/", { replace: true });
+    }
+
     async function handleSubmit(event) {
         event.preventDefault();
         setAccessError("");
@@ -80,7 +85,7 @@ export default function Login() {
                         {loading ? "Signing in..." : "Sign in"}
                     </Button>
                     {hasUnsupportedSession && (
-                        <button type="button" onClick={() => dispatch(clearAuth())} className="w-full text-sm text-muted-foreground underline">
+                        <button type="button" onClick={handleClearAuth} className="w-full text-sm text-muted-foreground underline">
                             Sign out
                         </button>
                     )}

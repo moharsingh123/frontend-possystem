@@ -54,7 +54,7 @@ const ShiftSummaryPage=()=>{
 
     function handleLogout() {
         dispatch(logout());
-        navigate("/login", { replace: true });
+        navigate("/", { replace: true });
     }
 
     const shift = currentShift || selectedShift;

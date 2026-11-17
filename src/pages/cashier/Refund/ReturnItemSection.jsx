@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select"
 import { useState } from 'react'
 import { Button } from '@/components/ui/button';
+import ProductImage from "@/components/ProductImage";
 
 
 const returnReasons=["Wrong product", "Damage Product" , "Not interested any more" , "Not Satisfied" , "Others"]
@@ -27,6 +28,7 @@ const ReturnItemsSection = ({ selectedOrder, setShowReturnReciptDialog }) => {
     const [returnReason , setReturnReason]= useState("")
     const [otherReason , setOtherReason] = useState("")
     const [refundMethod , setRefundMethod]= useState("UPI")
+    const items = Array.isArray(selectedOrder?.items) ? selectedOrder.items : [];
 
     // precess to call the returnReciptDialog
     const processRefund = () => {
@@ -97,6 +99,23 @@ const ReturnItemsSection = ({ selectedOrder, setShowReturnReciptDialog }) => {
                                 </SelectContent>
 
                             </Select> 
+                        </div>
+                        <div className="space-y-2 border-t pt-4">
+                            <Label>Items in this return</Label>
+                            <ul className="max-h-48 space-y-2 overflow-auto">
+                                {items.map((item, index) => {
+                                    const product = item.product || {};
+                                    const productName = product.name || item.name || "Product";
+                                    const productImage = product.image || product.images?.[0] || product.imageUrl || item.image;
+                                    return (
+                                        <li key={item.id || item.productId || `${productName}-${index}`} className="flex items-center gap-3 rounded-md border p-2">
+                                            <ProductImage src={productImage} alt={productName} className="h-10 w-10 shrink-0 rounded object-cover" />
+                                            <span className="min-w-0 flex-1 truncate text-sm font-medium">{productName}</span>
+                                            <span className="shrink-0 text-xs text-muted-foreground">Qty {item.quantity ?? 0}</span>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
                         </div>
                         <div className="pt-5 border-t">
                             <div className='flex justify-baseline text-lg font-semibold'>

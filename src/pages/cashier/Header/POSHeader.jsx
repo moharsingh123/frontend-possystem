@@ -44,7 +44,7 @@ const POSHeader = () => {
 
     function handleLogout() {
         dispatch(logout())
-        navigate("/login", { replace: true })
+        navigate("/", { replace: true })
     }
 
     // keep the clock ticking every second

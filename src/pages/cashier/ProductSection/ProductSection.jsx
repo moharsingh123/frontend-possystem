@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Search, ShoppingBag } from "lucide-react";
+import ProductImage from "@/components/ProductImage";
 
 export default function ProductSection({ products, stockByProduct, loading, onAdd }) {
     const [query, setQuery] = useState("");
@@ -41,13 +42,20 @@ export default function ProductSection({ products, stockByProduct, loading, onAd
                                 key={product.id}
                                 onClick={() => onAdd(product)}
                                 disabled={stock === 0}
-                                className="flex min-h-32 flex-col items-start justify-between rounded-lg border p-4 text-left transition hover:border-primary hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex min-h-40 flex-col items-start justify-between rounded-lg border p-3 text-left transition hover:border-primary hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                                <span className="w-full">
-                                    <span className="block font-medium">{product.name}</span>
-                                    <span className="mt-1 block text-xs text-muted-foreground">{product.brand || product.sku || "Product"}</span>
+                                <span className="flex w-full items-center gap-3">
+                                    <ProductImage
+                                        src={product.image}
+                                        alt={product.name}
+                                        className="h-16 w-16 shrink-0 rounded-md object-cover"
+                                    />
+                                    <span className="min-w-0">
+                                        <span className="block truncate font-medium">{product.name}</span>
+                                        <span className="mt-1 block truncate text-xs text-muted-foreground">{product.brand || product.sku || "Product"}</span>
+                                    </span>
                                 </span>
-                                <span className="mt-4 flex w-full items-end justify-between gap-2">
+                                <span className="mt-3 flex w-full items-end justify-between gap-2">
                                     <span className="font-semibold">{Number(product.sellingPrice).toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span>
                                     <span className="text-xs text-muted-foreground">{stock === undefined ? "Add item" : `${stock} in stock`}</span>
                                 </span>

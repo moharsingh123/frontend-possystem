@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router";
+import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Auth/Login";
 import Signup from "./pages/Auth/Signup";
 import RoleGate from "./components/RoleGate";
@@ -10,7 +11,7 @@ import StoreRoutes from "./routes/StoreRoutes";
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/cashier/*" element={<RoleGate roles={["ROLE_BRANCH_CASHIER"]}><CashierRoutes /></RoleGate>} />
