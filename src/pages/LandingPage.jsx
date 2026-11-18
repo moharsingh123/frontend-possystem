@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
+import SupportChat from "../components/chats/SupportChat";
 import checkoutPhoto from "../assets/retail-checkout.webp";
 import inventoryPhoto from "../assets/retail-inventory.webp";
 import storePhoto from "../assets/retail-store.webp";
@@ -133,6 +134,7 @@ export default function LandingPage() {
     }
 
     return (
+        <>
         <main className="landing-page" id="top">
             <header className="landing-header">
                 <div className="landing-container nav-shell">
@@ -295,5 +297,7 @@ export default function LandingPage() {
                 </div>
             </footer>
         </main>
+        <SupportChat />
+        </>
     );
 }
