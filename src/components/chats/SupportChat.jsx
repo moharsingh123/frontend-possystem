@@ -48,7 +48,7 @@ export default function SupportChat() {
         setVisitor({ name, email, phone });
         setMessages([{
             role: "assistant",
-            content: `Hi ${name}! Ask me about POS Pro services, using and managing your store, or using POS Pro reports and inventory tools to support business growth. I can only answer from the POS Pro information I have. Attachments are sent to our team for review and are not read by the chatbot.`,
+            content: `Welcome to POS Pro, ${name}! Thank you for visiting our website. Ask me about POS Pro services, using and managing your store, or using POS Pro reports and inventory tools to support business growth. I can only answer from the POS Pro information I have. Attachments are sent to our team for review and are not read by the chatbot.`,
         }]);
         setError("");
     }
